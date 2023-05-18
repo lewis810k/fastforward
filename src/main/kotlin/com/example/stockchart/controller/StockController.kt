@@ -1,5 +1,4 @@
 package com.example.stockchart.controller
-import com.example.stockchart.dto.FinanceChartResponse
 import com.example.stockchart.entity.StockSummary
 import com.example.stockchart.service.StockService
 import org.springframework.web.bind.annotation.GetMapping
@@ -15,6 +14,6 @@ class StockController(
 ) {
     @GetMapping
     fun getCharts(): List<StockSummary> {
-        return stockService.getCharts()
+        return stockService.findStockSummary()
     }
 }

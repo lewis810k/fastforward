@@ -1,5 +1,6 @@
 package com.example.stockchart.service
 
+import com.example.stockchart.dto.Chart
 import com.example.stockchart.dto.FinanceChartResponse
 import com.example.stockchart.dto.Quote
 import com.example.stockchart.entity.StockSummary
@@ -7,6 +8,7 @@ import com.example.stockchart.repository.StockSummaryRepository
 import org.springframework.boot.web.client.RestTemplateBuilder
 import org.springframework.http.HttpMethod
 import org.springframework.stereotype.Service
+import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.util.UriComponentsBuilder
 import java.text.SimpleDateFormat
@@ -18,47 +20,44 @@ class StockService(
         val stockSummaryRepository: StockSummaryRepository
 ) {
 
-    fun getCharts(symbol: String = "005930.KS", interval: String = "1d", range: String = "5d"): List<StockSummary> {
-        val restTemplate: RestTemplate = RestTemplateBuilder().build()
-        val builder: UriComponentsBuilder = UriComponentsBuilder.fromHttpUrl("https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}")
-
-        val body: FinanceChartResponse = restTemplate.exchange(builder.toUriString(), HttpMethod.GET, null, FinanceChartResponse::class.java).body
-                ?: throw Exception()
+    fun findStockSummary(symbol: String = "005930.KS", interval: String = "1d", range: String = "5d"): List<StockSummary> {
+        val chart = this.getFinanceChart(symbol, interval, range);
+        if (chart == null || chart.result.isEmpty()) {
+            return arrayListOf()
+        }
 
         val simpleDateFormat = SimpleDateFormat("yyyy-MM-dd")
-
-        val meta = body.chart.result[0].meta
-        val timestamps = body.chart.result[0].timestamp
-        val quotes = body.chart.result[0].indicators.quote
-
-        val start = simpleDateFormat.format(timestamps[0] * 1000)
-        val end = simpleDateFormat.format(timestamps[4] * 1000)
+        val timestamps = chart.result.first().timestamp
+        val start = simpleDateFormat.format(timestamps.first() * 1000)
+        val end = simpleDateFormat.format(timestamps.last() * 1000)
 
         val stockSummaries = stockSummaryRepository.findByTransactionDateBetweenAndSymbol(start, end, symbol)
+
+        val meta = chart.result.first().meta
+        val quotes = chart.result.first().indicators.quote
 
         for (i in timestamps.indices) {
             val transactionDate = simpleDateFormat.format(timestamps[i] * 1000)
             val stockSummary = stockSummaries.find { it.symbol == symbol && it.transactionDate == transactionDate }
+            val quote = quotes.first()
 
-            println(transactionDate)
-            println(stockSummary)
             if (stockSummary != null) {
-                stockSummary.close = quotes[0].close[i]
-                stockSummary.high = quotes[0].high[i]
-                stockSummary.low = quotes[0].low[i]
-                stockSummary.open = quotes[0].open[i]
-                stockSummary.volume = quotes[0].volume[i]
+                stockSummary.close = quote.close[i]
+                stockSummary.high = quote.high[i]
+                stockSummary.low = quote.low[i]
+                stockSummary.open = quote.open[i]
+                stockSummary.volume = quote.volume[i]
                 stockSummary.timestamp = timestamps[i]
                 stockSummary.updatedDate = Date.from(Instant.now())
                 stockSummaryRepository.save(stockSummary)
             } else {
                 val newStockSummary = StockSummary(
                         transactionDate = simpleDateFormat.format(timestamps[i] * 1000),
-                        close = quotes[0].close[i],
-                        high = quotes[0].high[i],
-                        low = quotes[0].low[i],
-                        open = quotes[0].open[i],
-                        volume = quotes[0].volume[i],
+                        close = quote.close[i],
+                        high = quote.high[i],
+                        low = quote.low[i],
+                        open = quote.open[i],
+                        volume = quote.volume[i],
                         timestamp = timestamps[i],
                         symbol = meta.symbol);
 
@@ -66,10 +65,18 @@ class StockService(
             }
         }
 
-        return stockSummaryRepository.findByTransactionDateBetweenAndSymbol("2023-05-12", "2023-05-15", "005930.KS")
+        return stockSummaryRepository.findByTransactionDateBetweenAndSymbol(start, end, symbol)
     }
 
-    private fun createStockSummary(quote: Quote, ): StockSummary {
+    private fun getFinanceChart(symbol: String, interval: String, range: String): Chart? {
+        val restTemplate: RestTemplate = RestTemplateBuilder().build()
+        val builder: UriComponentsBuilder = UriComponentsBuilder.fromHttpUrl("https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}")
 
+        return try {
+            restTemplate.exchange(builder.toUriString(), HttpMethod.GET, null, FinanceChartResponse::class.java).body?.chart
+        } catch (err: HttpClientErrorException) {
+            println(err)
+            null
+        }
     }
 }
