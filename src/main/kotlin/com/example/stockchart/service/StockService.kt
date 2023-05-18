@@ -13,13 +13,11 @@ import org.springframework.web.client.RestTemplate
 import org.springframework.web.util.UriComponentsBuilder
 import java.text.SimpleDateFormat
 import java.time.Instant
+import java.time.LocalDateTime
 import java.util.*
 
 @Service
-class StockService(
-        val stockSummaryRepository: StockSummaryRepository
-) {
-
+class StockService(val stockSummaryRepository: StockSummaryRepository) {
     fun findStockSummary(symbol: String = "005930.KS", interval: String = "1d", range: String = "5d"): List<StockSummary> {
         val chart = this.getFinanceChart(symbol, interval, range);
         if (chart == null || chart.result.isEmpty()) {
@@ -42,13 +40,17 @@ class StockService(
             val quote = quotes.first()
 
             if (stockSummary != null) {
+                if (stockSummary.timestamp == timestamps[i]) {
+                    continue
+                }
+
                 stockSummary.close = quote.close[i]
                 stockSummary.high = quote.high[i]
                 stockSummary.low = quote.low[i]
                 stockSummary.open = quote.open[i]
                 stockSummary.volume = quote.volume[i]
                 stockSummary.timestamp = timestamps[i]
-                stockSummary.updatedDate = Date.from(Instant.now())
+                stockSummary.updatedDate = LocalDateTime.now()
                 stockSummaryRepository.save(stockSummary)
             } else {
                 val newStockSummary = StockSummary(
@@ -60,7 +62,6 @@ class StockService(
                         volume = quote.volume[i],
                         timestamp = timestamps[i],
                         symbol = meta.symbol);
-
                 stockSummaryRepository.save(newStockSummary)
             }
         }
@@ -69,6 +70,7 @@ class StockService(
     }
 
     private fun getFinanceChart(symbol: String, interval: String, range: String): Chart? {
+        println(symbol)
         val restTemplate: RestTemplate = RestTemplateBuilder().build()
         val builder: UriComponentsBuilder = UriComponentsBuilder.fromHttpUrl("https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}")
 

@@ -1,5 +1,10 @@
 package com.example.stockchart.entity
 
+import com.fasterxml.jackson.annotation.JsonFormat
+import com.fasterxml.jackson.databind.annotation.JsonDeserialize
+import com.fasterxml.jackson.databind.annotation.JsonSerialize
+import com.fasterxml.jackson.datatype.jsr310.deser.LocalDateTimeDeserializer
+import com.fasterxml.jackson.datatype.jsr310.ser.LocalDateTimeSerializer
 import jakarta.persistence.*
 import lombok.Getter
 import lombok.Setter
@@ -8,6 +13,7 @@ import org.springframework.data.annotation.CreatedDate
 import org.springframework.data.annotation.LastModifiedDate
 import java.time.Instant
 import java.time.LocalDateTime
+import java.time.OffsetDateTime
 import java.time.ZoneId
 import java.util.Date
 
@@ -46,8 +52,14 @@ data class StockSummary(
         var timestamp: Long, // 거래일시
 
         @CreatedDate
-        var createdDate: Date = Date.from(Instant.now()), // 생성일시
+        @JsonSerialize(using = LocalDateTimeSerializer::class)
+        @JsonDeserialize(using = LocalDateTimeDeserializer::class)
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Seoul")
+        var createdDate: LocalDateTime = LocalDateTime.now(), // 생성일시
 
         @LastModifiedDate
-        var updatedDate: Date? = Date.from(Instant.now())
+        @JsonSerialize(using = LocalDateTimeSerializer::class)
+        @JsonDeserialize(using = LocalDateTimeDeserializer::class)
+        @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd HH:mm:ss", timezone = "Asia/Seoul")
+        var updatedDate: LocalDateTime? = null
 )
