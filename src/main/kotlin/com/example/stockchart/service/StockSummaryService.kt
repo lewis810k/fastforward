@@ -2,7 +2,6 @@ package com.example.stockchart.service
 
 import com.example.stockchart.dto.Chart
 import com.example.stockchart.dto.FinanceChartResponse
-import com.example.stockchart.dto.Quote
 import com.example.stockchart.entity.StockSummary
 import com.example.stockchart.repository.StockSummaryRepository
 import org.springframework.boot.web.client.RestTemplateBuilder
@@ -12,13 +11,12 @@ import org.springframework.web.client.HttpClientErrorException
 import org.springframework.web.client.RestTemplate
 import org.springframework.web.util.UriComponentsBuilder
 import java.text.SimpleDateFormat
-import java.time.Instant
 import java.time.LocalDateTime
-import java.util.*
 
 @Service
-class StockService(val stockSummaryRepository: StockSummaryRepository) {
-    fun findStockSummary(symbol: String = "005930.KS", interval: String = "1d", range: String = "5d"): List<StockSummary> {
+class StockSummaryService(val stockSummaryRepository: StockSummaryRepository) {
+    fun findStockSummary(symbol: String, range: String): List<StockSummary> {
+        val interval = "1d"
         val chart = this.getFinanceChart(symbol, interval, range);
         if (chart == null || chart.result.isEmpty()) {
             return arrayListOf()
@@ -70,7 +68,6 @@ class StockService(val stockSummaryRepository: StockSummaryRepository) {
     }
 
     private fun getFinanceChart(symbol: String, interval: String, range: String): Chart? {
-        println(symbol)
         val restTemplate: RestTemplate = RestTemplateBuilder().build()
         val builder: UriComponentsBuilder = UriComponentsBuilder.fromHttpUrl("https://query1.finance.yahoo.com/v8/finance/chart/${symbol}?interval=${interval}&range=${range}")
 
